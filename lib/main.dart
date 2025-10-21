@@ -58,6 +58,23 @@ class UserCart {
     product.stock--;
   }
 
+  void addMultipleItems(Product product, int quantityToAdd) {
+    if (quantityToAdd <= 0) return; // Can't add zero or negative
+    if (product.stock < quantityToAdd) return; // Check for stock
+
+    try {
+      // Check if item is already in cart
+      final existingItem = cart.firstWhere((item) => item.product.name == product.name);
+      // If yes, just increase its quantity
+      existingItem.quantity += quantityToAdd;
+    } catch (e) {
+      // If no, add it as a new item with the specified quantity
+      cart.add(CartItem(product: product, quantity: quantityToAdd));
+    }
+    // Decrease the product's stock by the quantity added
+    product.stock -= quantityToAdd;
+  }
+
   void decrementItem(CartItem cartItem) {
     cartItem.product.stock++;
     cartItem.quantity--;
@@ -464,6 +481,7 @@ class _MenuScreenState extends State<MenuScreen> {
                     ),
                     onPressed: () {
                       ProductService.instance.products.clear();
+                      UserCart.instance.cart.clear();
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(content: Text('All products cleared')),
                       );
@@ -628,11 +646,115 @@ class ProductListScreen extends StatefulWidget {
 
 class _ProductListScreenState extends State<ProductListScreen> {
   void _removeAt(int index) {
-    final removed = ProductService.instance.products.removeAt(index);
+    final removedProduct = ProductService.instance.products.removeAt(index);
+
+    // --- ADD THIS BLOCK ---
+    // Now, remove the matching item from the cart, if it exists
+    UserCart.instance.cart.removeWhere((cartItem) {
+      return cartItem.product == removedProduct;
+    });
+    // --- END OF BLOCK ---
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Removed: ${removed.name}')),
+      SnackBar(content: Text('Removed: ${removedProduct.name} from products and cart')),
     );
     setState(() {});
+  }
+
+  void _showAddToCartModal(int index) {
+    final p = ProductService.instance.products[index];
+    final controller = TextEditingController();
+
+    if (p.stock <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${p.name} is out of stock')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Add ${p.name} to Cart', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Available stock: ${p.stock}'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  labelText: 'Quantity to add',
+                  hintText: 'Enter quantity',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final input = controller.text.trim();
+                      final quantityToAdd = int.tryParse(input);
+
+                      if (quantityToAdd == null || quantityToAdd <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter a positive quantity')),
+                        );
+                        return;
+                      }
+
+                      if (quantityToAdd > p.stock) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Not enough stock. Only ${p.stock} available.')),
+                        );
+                        return;
+                      }
+
+                      // Success
+                      // Use the new service method
+                      UserCart.instance.addMultipleItems(p, quantityToAdd);
+
+                      // Update the UI
+                      setState(() {});
+
+                      // Close modal
+                      Navigator.of(context).pop();
+
+                      // Show confirmation
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Added $quantityToAdd x ${p.name} to cart')),
+                      );
+                    },
+                    child: const Text('Add to Cart'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showReplenishBottomSheet(int index) {
@@ -773,15 +895,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             Icons.shopping_cart_checkout,
                             color: outOfStock ? Colors.grey : Colors.green,
                           ),
+
                           onPressed: p.stock > 0
                               ? () {
-                            setState(() {
-                              UserCart.instance.addItem(p);
-                            });
-                            ScaffoldMessenger.of(context)
-                                .showSnackBar(
-                              SnackBar(content: Text('Added ${p.name} to cart')),
-                            );
+                                _showAddToCartModal(index);
                           }
                               : null,
                         ),
