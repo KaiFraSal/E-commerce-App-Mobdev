@@ -580,7 +580,6 @@ class _AddProductScreenState extends State<AddProductScreen> {
                       TextFormField(
                         controller: _descC,
                         decoration: const InputDecoration(labelText: 'Description'),
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -636,26 +635,96 @@ class _ProductListScreenState extends State<ProductListScreen> {
     setState(() {});
   }
 
+  void _showReplenishBottomSheet(int index) {
+    final p = ProductService.instance.products[index];
+    final controller = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return Padding(
+          padding: EdgeInsets.only(
+            left: 16,
+            right: 16,
+            top: 16,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Replenish ${p.name}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text('Current stock: ${p.stock}'),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Amount to add',
+                  hintText: 'Enter a positive integer',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Cancel'),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      final input = controller.text.trim();
+                      final value = int.tryParse(input);
+                      if (value == null || value <= 0) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Please enter a positive integer')),
+                        );
+                        return;
+                      }
+                      setState(() {
+                        p.stock += value;
+                      });
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Added $value to ${p.name} stock')),
+                      );
+                    },
+                    child: const Text('Add'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final products = ProductService.instance.products;
 
     return Container(
       decoration: const BoxDecoration(
-          gradient:  LinearGradient(
+        gradient: LinearGradient(
             begin: Alignment.topCenter,
-            end:  Alignment.bottomCenter,
+            end: Alignment.bottomCenter,
             colors: [Color(0xffFFBF00), Color(0xffF85B1A)]
-          ),
         ),
+      ),
       child: Scaffold(
         backgroundColor: Colors.transparent,
         appBar: AppBar(
           title: const Text('Products', style: TextStyle(color: Colors.white)),
           centerTitle: true,
-          iconTheme: IconThemeData(
-            color: Colors.white
-          ),
+          iconTheme: const IconThemeData(color: Colors.white),
           backgroundColor: const Color(0xff072083),
         ),
         body: products.isEmpty
@@ -667,6 +736,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
           itemCount: products.length,
           itemBuilder: (context, index) {
             final p = products[index];
+            final bool outOfStock = p.stock == 0;
+
             return Dismissible(
               key: ValueKey(p.hashCode + index),
               direction: DismissDirection.endToStart,
@@ -678,15 +749,30 @@ class _ProductListScreenState extends State<ProductListScreen> {
               ),
               onDismissed: (_) => _removeAt(index),
               child: Card(
+                color: outOfStock ? Colors.grey[300] : null,
                 child: ListTile(
-                  title: Text(p.name),
-                  subtitle: Text("Desc: ${p.desc}\nPrice: \₱${p.price.toStringAsFixed(2)}\nStock: ${p.stock}"),
+                  enabled: !outOfStock,
+                  title: Text(
+                    p.name,
+                    style: TextStyle(
+                      color: outOfStock ? Colors.grey[700] : null,
+                    ),
+                  ),
+                  subtitle: Text(
+                    "Desc: ${p.desc}\nPrice: ₱${p.price.toStringAsFixed(2)}\nStock: ${p.stock}",
+                    style: TextStyle(
+                      color: outOfStock ? Colors.grey[700] : null,
+                    ),
+                  ),
                   trailing: SizedBox(
-                    width: 100,
+                    width: 150,
                     child: Row(
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.shopping_cart_checkout, color: Colors.green),
+                          icon: Icon(
+                            Icons.shopping_cart_checkout,
+                            color: outOfStock ? Colors.grey : Colors.green,
+                          ),
                           onPressed: p.stock > 0
                               ? () {
                             setState(() {
@@ -694,16 +780,24 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             });
                             ScaffoldMessenger.of(context)
                                 .showSnackBar(
-                              SnackBar(
-                                  content:
-                                  Text('Added ${p.name} to cart')),
+                              SnackBar(content: Text('Added ${p.name} to cart')),
                             );
                           }
                               : null,
                         ),
                         IconButton(
-                          icon: const Icon(Icons.delete_forever,
-                              color: Colors.red),
+                          icon: const Icon(
+                            Icons.add_circle,
+                            color: Colors.blue,
+                          ),
+                          tooltip: 'Replenish stock',
+                          onPressed: () => _showReplenishBottomSheet(index),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_forever,
+                            color: outOfStock ? Colors.grey[700] : Colors.red,
+                          ),
                           onPressed: () => _removeAt(index),
                         ),
                       ],
