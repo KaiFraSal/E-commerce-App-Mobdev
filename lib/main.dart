@@ -4,6 +4,8 @@ void main() {
   runApp(const ProductDemoApp());
 }
 
+// AUTHENTICATION LOGIC
+
 class AuthService {
   AuthService._private();
   static final AuthService instance = AuthService._private();
@@ -88,10 +90,11 @@ class User {
 }
 
 class Product {
+  final String desc;
   final String name;
   double price;
   int stock;
-  Product({required this.name, required this.price, required this.stock});
+  Product({required this.desc, required this.name, required this.price, required this.stock});
 }
 
 class CartItem {
@@ -121,6 +124,8 @@ class ProductDemoApp extends StatelessWidget {
     );
   }
 }
+
+// LOGIN SCREENS
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -485,6 +490,7 @@ class AddProductScreen extends StatefulWidget {
 class _AddProductScreenState extends State<AddProductScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameC = TextEditingController();
+  final TextEditingController _descC = TextEditingController();
   final TextEditingController _priceC = TextEditingController();
   final TextEditingController _stockC = TextEditingController();
 
@@ -502,6 +508,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     }
 
     final product = Product(
+      desc: _descC.text.trim(),
       name: _nameC.text.trim(),
       price: price,
       stock: stock,
@@ -513,6 +520,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
     );
 
     _nameC.clear();
+    _descC.clear();
     _priceC.clear();
     _stockC.clear();
   }
@@ -520,6 +528,7 @@ class _AddProductScreenState extends State<AddProductScreen> {
   @override
   void dispose() {
     _nameC.dispose();
+    _descC.dispose();
     _priceC.dispose();
     _stockC.dispose();
     super.dispose();
@@ -566,6 +575,12 @@ class _AddProductScreenState extends State<AddProductScreen> {
                         const InputDecoration(labelText: 'Product Name'),
                         validator: (v) =>
                         v == null || v.trim().isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _descC,
+                        decoration: const InputDecoration(labelText: 'Description'),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       ),
                       const SizedBox(height: 8),
                       TextFormField(
@@ -665,8 +680,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
               child: Card(
                 child: ListTile(
                   title: Text(p.name),
-                  subtitle: Text(
-                      "Price: \₱${p.price.toStringAsFixed(2)}\nStock: ${p.stock}"),
+                  subtitle: Text("Desc: ${p.desc}\nPrice: \₱${p.price.toStringAsFixed(2)}\nStock: ${p.stock}"),
                   trailing: SizedBox(
                     width: 100,
                     child: Row(
@@ -772,7 +786,7 @@ class _CartScreenState extends State<CartScreen> {
                       child: ListTile(
                         title: Text(item.product.name),
                         subtitle: Text(
-                            "Price: \₱${item.product.price.toStringAsFixed(2)}"),
+                            "Stock: ${item.product.stock} \nPrice: \₱${item.product.price.toStringAsFixed(2)}"),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
