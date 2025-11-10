@@ -4,8 +4,6 @@ void main() {
   runApp(const ProductDemoApp());
 }
 
-// AUTHENTICATION LOGIC
-
 class AuthService {
   AuthService._private();
   static final AuthService instance = AuthService._private();
@@ -40,7 +38,7 @@ class ProductService {
   final List<Product> products = [];
 }
 
-class UserCart {
+class UserCart {  
   UserCart._private();
   static final UserCart instance = UserCart._private();
 
@@ -59,19 +57,15 @@ class UserCart {
   }
 
   void addMultipleItems(Product product, int quantityToAdd) {
-    if (quantityToAdd <= 0) return; // Can't add zero or negative
-    if (product.stock < quantityToAdd) return; // Check for stock
+    if (quantityToAdd <= 0) return;
+    if (product.stock < quantityToAdd) return;
 
     try {
-      // Check if item is already in cart
       final existingItem = cart.firstWhere((item) => item.product.name == product.name);
-      // If yes, just increase its quantity
       existingItem.quantity += quantityToAdd;
     } catch (e) {
-      // If no, add it as a new item with the specified quantity
       cart.add(CartItem(product: product, quantity: quantityToAdd));
     }
-    // Decrease the product's stock by the quantity added
     product.stock -= quantityToAdd;
   }
 
@@ -648,12 +642,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
   void _removeAt(int index) {
     final removedProduct = ProductService.instance.products.removeAt(index);
 
-    // --- ADD THIS BLOCK ---
-    // Now, remove the matching item from the cart, if it exists
     UserCart.instance.cart.removeWhere((cartItem) {
       return cartItem.product == removedProduct;
     });
-    // --- END OF BLOCK ---
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Removed: ${removedProduct.name} from products and cart')),
@@ -731,17 +722,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         return;
                       }
 
-                      // Success
-                      // Use the new service method
                       UserCart.instance.addMultipleItems(p, quantityToAdd);
 
-                      // Update the UI
                       setState(() {});
 
-                      // Close modal
                       Navigator.of(context).pop();
 
-                      // Show confirmation
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Added $quantityToAdd x ${p.name} to cart')),
                       );
@@ -997,7 +983,7 @@ class _CartScreenState extends State<CartScreen> {
                       child: ListTile(
                         title: Text(item.product.name),
                         subtitle: Text(
-                            "Stock: ${item.product.stock} \nPrice: \₱${item.product.price.toStringAsFixed(2)}"),
+                            "Desc: ${item.product.desc} \nPrice: \₱${item.product.price.toStringAsFixed(2)}"),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -1056,6 +1042,26 @@ class _CartScreenState extends State<CartScreen> {
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
                         color: Colors.green),
+                  ),
+                  ElevatedButton.icon(
+                    icon: const Icon(
+                      Icons.delete_forever,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Checkout',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color.fromARGB(255, 142, 229, 115),
+                    ),
+                    onPressed: () {
+                      UserCart.instance.cart.clear();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Checkout successful')),
+                      );
+                      setState(() {});
+                    },
                   ),
                 ],
               ),
